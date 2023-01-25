@@ -184,7 +184,7 @@ axiom one.intro_right:
 theorem one.valid: valid one.left_set one.right_set :=
 begin
   rw [valid, one.left_set, one.right_set],
-  rw not_bex,  intros l hl,
+  rw not_bex, intros l hl,
   rw not_bex, intros r hr,
   intro hge,
   exact hr,
@@ -203,7 +203,7 @@ axiom minus_one.intro_right:
 theorem minus_one.valid: valid minus_one.left_set minus_one.right_set :=
 begin
   rw [valid, minus_one.left_set, minus_one.right_set],
-  rw not_bex,  intros l hl,
+  rw not_bex, intros l hl,
   rw not_bex, intros r hr,
   intro hge,
   exact hl,
