@@ -1,0 +1,5 @@
+{
+    "editor.wordWrap": "wordWrapColumn",
+    "editor.wordWrapColumn": 100,
+    "editor.wrappingStrategy": "simple"
+}
