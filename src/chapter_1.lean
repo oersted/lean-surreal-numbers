@@ -1,4 +1,5 @@
 import tactic.suggest
+import tactic.simps
 
 /-
 In this project I will work on formalizing Donald Knuth's lovely classic Surreal Numbers.
