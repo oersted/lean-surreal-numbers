@@ -1,98 +1,62 @@
 import tactic.suggest
-import order.min_max
+import tactic.linarith
+import init.meta.well_founded_tactics
 
 namespace surreal
 
-inductive number : Type
-| zero : number
-| add_left : number → number → number
-| add_right : number → number → number
+mutual inductive number, pocket
+with number : Type
+| mk : pocket → pocket → number
+with pocket : Type
+| empty : pocket
+| add : pocket → number → pocket
 
-instance : has_union (set number) := ⟨λ (X Y : set number), {n | n ∈ X ∨ n ∈ Y}⟩
+def pocket.set : pocket → set number
+| (pocket.empty)   := ∅
+| (pocket.add P n) := P.set ∪ {n}
 
 def number.left : number → set number
-| number.zero := ∅
-| (number.add_left n l) := {l} ∪ n.left
-| (number.add_right n r) := n.left
+| (number.mk L R) := L.set
 
 def number.right : number → set number
-| number.zero := ∅
-| (number.add_left n l) := n.right
-| (number.add_right n r) := {r} ∪ n.right
+| (number.mk L R) := L.set
 
-def number.day : number → ℕ
-| number.zero := 0
-| (number.add_left n l) := max (l.day + 1) n.day
-| (number.add_right n r) := max (r.day + 1) n.day
+mutual def number.size, pocket.size
+with number.size : number → ℕ
+| (number.mk L R)  := L.size + R.size
+with pocket.size : pocket → ℕ
+| (pocket.empty)   := 0
+| (pocket.add P n) := P.size + n.size + 1
 
-lemma left_mem (x y z : number) : x ∈ (y.add_left z).left → x ∈ y.left :=
-begin
-  intro h,
-  rw [number.left] at h,
-  sorry
-end
+def number.le : number → number → Prop
+| (number.mk pocket.empty pocket.empty) (number.mk pocket.empty pocket.empty) := true
+| (number.mk (pocket.add Xl xl) Xr) y := 
+    have y.size + xl.size < (number.mk (Xl.add xl) Xr).size + y.size, from 
+      begin simp [number.size, pocket.size], linarith end,
+    have (number.mk Xl Xr).size < (number.mk (Xl.add xl) Xr).size, from
+      begin simp [number.size, pocket.size], linarith end,
+  ¬(y.le xl) ∧ ((number.mk Xl Xr).le y)
+| (number.mk Xl (pocket.add Xr xr)) y := 
+    have (number.mk Xl Xr).size < (number.mk Xl (Xr.add xr)).size, from
+      begin simp [number.size, pocket.size], linarith end,
+  ((number.mk Xl Xr).le y)
+| x (number.mk (pocket.add Yl yl) Yr) := 
+    have (number.mk Yl Yr).size < (number.mk (Yl.add yl) Yr).size, from
+      begin simp [number.size, pocket.size], linarith end,
+  (x.le (number.mk Yl Yr))
+| x (number.mk Yl (pocket.add Yr yr)) := 
+    have yr.size + x.size < x.size + (number.mk Yl (Yr.add yr)).size, from
+      begin simp [number.size, pocket.size], linarith end,
+    have (number.mk Yl Yr).size < (number.mk Yl (Yr.add yr)).size, from
+      begin simp [number.size, pocket.size], linarith end,
+  ¬(yr.le x) ∧ (x.le (number.mk Yl Yr))
+using_well_founded {
+  dec_tac := `[try {well_founded_tactics.default_dec_tac}, try {assumption}],
+  rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ s, s.1.size + s.2.size)⟩]}
 
-theorem member_is_older (x : number) : 
-  (∀xl ∈ x.left, (number.day xl) < (number.day x)) ∧
-  (∀xr ∈ x.right, (number.day xr) < (number.day x)) :=
-begin
-  split,
-  begin
-    intros xl hmem,
-    induction x with hx hxl ihx ihxl hx hxr ihx ihxr,
-    begin
-      rw number.day,
-      apply false.rec,
-      exact hmem,
-    end,
-    begin
-      rw number.day,
-      refine lt_max_iff.mpr _,
-      apply or.intro_right,
-      apply ihx,
-      apply left_mem,
-      exact hmem,
-    end,
-    begin
-      sorry
-    end
-  end,
-  begin
-    sorry
-  end
-end
+instance : has_le number := ⟨number.le⟩
 
-
--- def le : number → number → Prop
--- | x y := ∀ xl ∈ x.left, ¬(le y xl)
--- using_well_founded 
---   { rel_tac := λ _ _, 
---     `[exact ⟨_, measure_wf (λ s, s.1.day + s.2.day)⟩] }
-  
--- def mem : number → set → Prop
--- | x set.empty  := false
--- | x (set.add y tail) := x == y ∨ mem x tail
-
--- instance : has_mem number set := ⟨mem⟩
-
--- def le : number → number → Prop
--- | (number.mk Xl Xr) (number.mk Yl Yr) := ∀ xl ∈ Xl, ¬(le (number.mk Yl Yr) xl)
--- using_well_founded 
---   { rel_tac := λ _ _, 
---     `[exact ⟨_, measure_wf (λ t, number.sizeof t.1 + number.sizeof t.2)⟩] }
-
--- def valid : number → Prop
--- | (number.mk L R) := ∀ l ∈ L, ∀ r ∈ R, ¬(l ≥ r) ∧ (valid l) ∧ (valid r)
-
--- inductive number : Type
--- | zero : number
--- | left : number → number → number
--- | right : number → number → number
-
--- def valid : number → Prop
--- | number.zero := true
--- | (number.left n l) := false
--- | (number.right n r) := false
-
+def number.surreal : number → Prop
+| n := ∀l ∈ n.left, ∀r ∈ n.right, ¬(l ≥ r)
 
 end surreal
