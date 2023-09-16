@@ -1,8 +1,18 @@
-import tactic.suggest
+import logic.basic
 
 /-
-In this project I will work on formalizing Donald Knuth's lovely classic Surreal Numbers.
+In this project I will work on formalizing Donald Knuth's lovely classic Surreal Numbers. I will
+summarize the written maths as I go for reference, but I highly recommend any reader getting the 
+original book and reading alongside, it will give it so much more flavour.
 
+I will also not go much into Lean implementation details or the proofs themselves, they are already
+beautifully explained in the book. This is primarily a fun learning exercise for myself, and
+accompanying commentary is mostly intended to order my thoughts and help me not loose track. In 
+future, I might consider adapting the text to make this into a proper tutorial for newcommers, but I
+will likely publish it in this raw state for the time being.
+-/
+
+/-
 My strategy for the formalization will be to define the initial rules as axioms, without proving
 that they are consistent with Lean's axiomatic foundations. This is not how Lean is supposed to be
 used, it is generally frowned upon to use axioms since it can be quite easy to introduce
@@ -22,6 +32,14 @@ surreals within) is perhaps still not formally linked to set theory and wider ma
 I tried using mathlib's definition to prove the initial rules, so that then I could build on it
 without going into implementation details. But mathlib doesn't even have a simple operation to get
 the left and right sets for a surreal, so I cannot even express the first rule cleanly to prove it.
+
+The book has this nice concept of surreals being built in waves called days. The first day zero is
+created, the second day one and minus one, which contain zero, and so on, where surreal numbers from
+a particular day can only contain numbers from previous days in their sets. This might be another
+viable bootstrapping strategy for formalization in Lean which hasn't been attempted, as far as I
+know. But it is just an intuition for now, I'm not totally sure how it would be implemented.
+
+Anyways, enough of that, we haven't even started and I'm already baffling about deep things.
 
 Discussion with the community about it:
 https://leanprover-community.github.io/archive/stream/113489-new-members/topic/defining.20surreal.20numbers.html
@@ -107,8 +125,8 @@ number's right set is less than or equal to the first number.
 
 axiom le.intro (x y: surreal):
   x ≤ y ↔
-    (¬∃ xL ∈ x.left, xL ≥ y) ∧
-    (¬∃ yR ∈ y.right, yR ≤ x)
+    (¬∃ xl ∈ x.left, xl ≥ y) ∧
+    (¬∃ yr ∈ y.right, yr ≤ x)
 
 
 /-
@@ -140,25 +158,15 @@ that it is valid, but we need to be careful moving forward.
 As a compromise, I've isolated the `valid` predicate and I prove it every time I define a particular
 surreal number. This is just convetion, Lean doesn't force me, but it ensures that I won't introduce
 any footguns accidentally.
-
-Also see how I use two axioms to link the local definitions of the two sets to the main `left` and
-`right` functions defined above just after the `surreal` type. These are necessary to associate
-the sets with the actual `zero` type, otherwise they are decoupled (the `zero.` prefix is just a
-name, they are not actually associated).
 -/
 
 constant zero: surreal
-def zero.left_set: set surreal := ∅
-def zero.right_set: set surreal := ∅
+axiom zero.elim_left: left zero = ∅
+axiom zero.elim_right: right zero = ∅
 
-axiom zero.intro_left:
-  left zero = zero.left_set
-axiom zero.intro_right:
-  right zero = zero.right_set
-
-theorem zero.valid: valid zero.left_set zero.right_set :=
+lemma zero.valid: valid zero.left zero.right :=
 begin
-  rw [valid, zero.left_set, zero.right_set],
+  rw [valid, zero.elim_left, zero.elim_right],
   rw not_bex,
   intros l hl,
   rw not_bex,
@@ -168,22 +176,17 @@ begin
 end
 
 /-
-On the next day, two more numbers were created, one with zero as its left set and one with zero as
+> On the next day, two more numbers were created, one with zero as its left set and one with zero as
 its right set. And Conway called the former number "one", and the latter he called "minus one".
 -/
 
 constant one: surreal
-def one.left_set: set surreal := {zero}
-def one.right_set: set surreal := ∅
+axiom one.elim_left: left one = {zero}
+axiom one.elim_right: right one = ∅
 
-axiom one.intro_left:
-  left one = one.left_set
-axiom one.intro_right:
-  right one = one.right_set
-
-theorem one.valid: valid one.left_set one.right_set :=
+lemma one.valid: valid one.left one.right :=
 begin
-  rw [valid, one.left_set, one.right_set],
+  rw [valid, one.elim_left, one.elim_right],
   rw not_bex, intros l hl,
   rw not_bex, intros r hr,
   intro hge,
@@ -192,17 +195,12 @@ end
 
 
 constant minus_one: surreal
-def minus_one.left_set: set surreal := ∅
-def minus_one.right_set: set surreal := {zero}
+axiom minus_one.elim_left: left minus_one = ∅
+axiom minus_one.elim_right: right minus_one = {zero}
 
-axiom minus_one.intro_left:
-  left minus_one = minus_one.left_set
-axiom minus_one.intro_right:
-  right minus_one = minus_one.right_set
-
-theorem minus_one.valid: valid minus_one.left_set minus_one.right_set :=
+lemma minus_one.valid: valid minus_one.left minus_one.right :=
 begin
-  rw [valid, minus_one.left_set, minus_one.right_set],
+  rw [valid, minus_one.elim_left, minus_one.elim_right],
   rw not_bex, intros l hl,
   rw not_bex, intros r hr,
   intro hge,
@@ -210,16 +208,18 @@ begin
 end
 
 /-
-And he proved that minus one is less than but not equal to zero and zero is less than but not equal
-to one.
+> And he proved that minus one is less than but not equal to zero and zero is less than but not
+equal to one.
+
+TODO: I believe they explain this proof later on, so I'll wait for that.
 -/
 
-theorem minus_one_lt_zero: minus_one < zero ∧ minus_one ≠ zero :=
+lemma minus_one_lt_zero: minus_one < zero ∧ minus_one ≠ zero :=
 begin
   sorry
 end
 
-theorem zero_lt_one: zero < one ∧ zero ≠ one :=
+lemma zero_lt_one: zero < one ∧ zero ≠ one :=
 begin
   sorry
 end
